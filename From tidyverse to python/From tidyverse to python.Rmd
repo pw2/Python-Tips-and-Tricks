@@ -1,0 +1,328 @@
+---
+title: "From tidyverse to python"
+author: "Patrick Ward"
+date: "3/29/2023"
+output: html_document
+---
+
+## NOTE
+
+This RMarkdown file is a companion for my **From tidyverse to python** `jupyter notebook`, which walks through the same steps using python.
+
+## Import libraries
+
+```{r}
+library(tidyverse)
+library(palmerpenguins)
+
+theme_set(theme_classic())
+```
+
+
+## Load data set
+
+```{r}
+data("penguins")
+df <- penguins
+
+df %>%
+  head()
+
+```
+
+
+## Exploratory Data Analysis
+
+Count the number of species in the data
+
+```{r}
+df %>%
+  count(species, sort = TRUE)
+```
+
+
+Count the number of islands in the data
+
+```{r}
+df %>%
+  count(island, sort = TRUE)
+```
+
+
+Count the species on each island
+
+```{r}
+df %>%
+  count(species, island, sort = TRUE)
+```
+
+
+Create a 3x3 table of species by island
+
+```{r}
+table(species = df$species,
+      island = df$island)
+```
+
+Turn the 3x3 table into a table of proportions
+
+```{r}
+table(species = df$species,
+      island = df$island) / nrow(df)
+```
+
+
+Barplot of species
+
+```{r}
+df %>%
+  count(species, sort = TRUE) %>%
+  ggplot(aes(x = reorder(species, -n), y = n)) +
+  geom_col(aes(fill = species)) +
+  xlab('species')
+```
+
+
+Describe the data in all columns
+
+```{r}
+psych::describe(df)
+```
+
+
+Calculate the mean for bill length and bill depth
+
+```{r}
+df %>%
+  select(bill_length_mm, bill_depth_mm) %>%
+  summarize(across(.cols = everything(),
+                   ~mean(.x, na.rm = TRUE)))
+```
+
+
+Count the NAs in each column
+
+```{r}
+df %>%
+  summarize(across(.cols = everything(),
+                   ~sum(is.na(.x)))) %>%
+  pivot_longer(cols = everything())
+  
+```
+
+
+If we wanted to remove all rows with an NA we could run the following code. (We will comment it out for now).
+
+```{r}
+# df <- df %>% na.omit()
+```
+
+
+Get the 25th, 50th, and 75th quantiles for bill length and bill depth on the Island Biscoe
+
+
+```{r}
+df %>%
+  filter(island == "Biscoe") %>%
+  select(bill_length_mm, bill_depth_mm) %>%
+  summarize(length25 = quantile(bill_length_mm, probs = 0.25, na.rm = TRUE),
+            length50 = quantile(bill_length_mm, probs = 0.50, na.rm = TRUE),
+            length75 = quantile(bill_length_mm, probs = 0.75, na.rm = TRUE),
+            depth25 = quantile(bill_depth_mm, probs = 0.25, na.rm = TRUE),
+            depth50 = quantile(bill_depth_mm, probs = 0.50, na.rm = TRUE),
+            depth75 = quantile(bill_depth_mm, probs = 0.75, na.rm = TRUE))
+```
+
+
+Boxplot of bill length by species
+
+```{r}
+df %>%
+  ggplot(aes(x = species, y = bill_length_mm, fill = species)) +
+  geom_boxplot()
+```
+
+
+Make the boxplot horizontal
+
+```{r}
+df %>%
+  ggplot(aes(x = bill_length_mm, y = species, fill = species)) +
+  geom_boxplot()
+```
+
+
+Density plot of bill length grouped by sex
+
+```{r}
+df %>%
+  na.omit() %>%
+  ggplot(aes(x = bill_length_mm, fill = sex)) +
+  geom_density(alpha = 0.4)
+```
+
+
+Bill Length by Sex with Facet's for Species
+
+```{r}
+df %>%
+  na.omit() %>%
+  ggplot(aes(x = bill_length_mm, fill = sex)) +
+  geom_density(alpha = 0.4) +
+  facet_wrap(~species)
+```
+
+
+scatter plot showing flipper length relative to body mass
+
+```{r}
+df %>%
+  ggplot(aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point()
+```
+
+
+scatter plot with regression line
+
+```{r}
+df %>%
+  ggplot(aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+scatter plot colored by sex
+
+```{r}
+df %>%
+  ggplot(aes(x = flipper_length_mm, y = body_mass_g,
+             color = sex)) +
+  geom_point()
+```
+
+
+scatter plot colored by sex with regression lines
+
+```{r}
+df %>%
+  filter(!is.na(sex)) %>%
+  ggplot(aes(x = flipper_length_mm, y = body_mass_g,
+             color = sex)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+
+Change in body mass across years by species
+
+```{r}
+df %>%
+  group_by(species, year) %>%
+  summarize(N = n(),
+            avg = mean(body_mass_g, na.rm = TRUE),
+            SE = sd(body_mass_g, na.rm = TRUE) / sqrt(N),
+            .groups = "drop") %>%
+  ggplot(aes(x = year, y = avg)) +
+  geom_ribbon(aes(ymin = avg - SE, ymax = avg + SE,
+                  fill = species),
+              alpha = 0.3) +
+  geom_line(aes(color = species))
+```
+
+
+## Group By Summarize
+
+Mean and standard deviation of bill length for each species.
+
+```{r}
+df %>%
+  group_by(species) %>%
+  summarize(avg_bill_length = mean(bill_length_mm, na.rm = TRUE),
+            sd_bill_length = sd(bill_length_mm, na.rm = TRUE))
+```
+
+
+Mean and standard deviation of bill length for each species by sex
+
+```{r}
+df %>%
+  filter(!is.na(sex)) %>%
+  group_by(species, sex) %>%
+  summarize(avg_bill_length = mean(bill_length_mm, na.rm = TRUE),
+            sd_bill_length = sd(bill_length_mm, na.rm = TRUE))
+```
+
+
+## Group By Mutate
+
+Add a new column to the data frame that shows mean flipper length grouped by species
+
+```{r}
+df <- df %>%
+  group_by(species) %>%
+  mutate(mean_flipper_length = mean(flipper_length_mm, na.rm = TRUE))
+
+df %>%
+  head()
+```
+
+
+Z-score by species for flipper length 
+
+```{r}
+df <- df %>%
+  group_by(species) %>%
+  mutate(flipper_z = (flipper_length_mm - mean(flipper_length_mm, na.rm = TRUE)) / sd(flipper_length_mm, na.rm = TRUE))
+
+df %>%
+  head()
+```
+
+
+Add a column for the mean and standard deviation by species for bill length
+
+```{r}
+df <- df %>%
+  group_by(species) %>%
+  mutate(mean_val = mean(bill_length_mm, na.rm = TRUE),
+         sd_val = sd(bill_length_mm, na.rm = TRUE))
+
+df %>%
+  head()
+```
+
+
+## ifelse / case_when
+
+Create a new column that codes the islands as:
+
+* Biscoe = Island1
+* Dream = Island2
+* Torgersen = Island3
+
+```{r}
+df <- df %>%
+  mutate(island_code = case_when(island == "Biscoe" ~ "Island1",
+                                 island == "Dream" ~ "Island2",
+                                 island == "Torgersen" ~ "Island3"))
+
+df %>%
+  head()
+```
+
+
+## Linear Regression
+
+Fit a linear model
+
+```{r}
+model <- lm(body_mass_g ~ flipper_length_mm + species + sex, data = df)
+```
+
+
+Review model results
+
+```{r}
+summary(model)
+```
+
